@@ -1,0 +1,14 @@
+{
+  "name": "student-helper-ng",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Student Helper NG website with Firebase auth and Gemini-powered AI tutor.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check app.js && node --check server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log*
+.git
+.gitignore
+.env
+.env.*
+firebase.json
+.firebaserc
+render.yaml

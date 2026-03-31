@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Helper NG 2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-screen-card">
+      <div class="auth-screen-copy">
+        <p class="eyebrow">Student Helper NG 2.0</p>
+        <h1>Sign in to your exam prep dashboard.</h1>
+        <p class="hero-text">
+          Organise WAEC and JAMB subjects, track reading plans, manage homework, practise CBT,
+          and monitor your strongest and weakest topics in one place.
+        </p>
+      </div>
+
+      <form id="registrationForm" class="auth-form">
+        <label>
+          Email
+          <input type="email" id="authEmail" placeholder="student@example.com" required>
+        </label>
+        <label>
+          Password
+          <input type="password" id="authPassword" placeholder="Enter password" minlength="6" required>
+        </label>
+        <div class="button-row">
+          <button type="submit" class="primary-button">Create Account</button>
+          <button type="button" id="loginButton" class="secondary-button">Log In</button>
+        </div>
+        <p id="registrationSavedMessage" class="support-text">Authentication is connected to Firebase.</p>
+      </form>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand-block">
+        <p class="eyebrow">Student Helper NG</p>
+        <h2>Version 2.0</h2>
+        <p class="support-text">A better organised dashboard for Nigerian secondary school exam prep.</p>
+      </div>
+
+      <nav class="side-nav">
+        <button class="nav-button active" data-target="overviewSection">Overview</button>
+        <button class="nav-button" data-target="plannerSection">Planner</button>
+        <button class="nav-button" data-target="examSection">Exam Prep</button>
+        <button class="nav-button" data-target="practiceSection">Practice</button>
+        <button class="nav-button" data-target="aiSection">AI Tutor</button>
+        <button class="nav-button" data-target="notesSection">Notes Bank</button>
+      </nav>
+
+      <div class="account-panel">
+        <h3 class="group-title">Account</h3>
+        <p id="authStatusText" class="support-text">No student is signed in yet.</p>
+        <button type="button" id="logoutButton" class="secondary-button">Log Out</button>
+      </div>
+    </aside>
+
+    <main class="content-shell">
+      <section id="overviewSection" class="app-section active-section">
+        <header class="hero hero-dashboard">
+          <div class="hero-copy">
+            <p class="eyebrow">Overview</p>
+            <h1>Stay ready for tests, WAEC, JAMB, and school deadlines.</h1>
+            <p class="hero-text">
+              Your daily control center for homework, exam countdowns, topic mastery, practice sessions,
+              and score improvement.
+            </p>
+            <div class="hero-stats">
+              <article>
+                <span id="dueSoonCount">0</span>
+                <p>Due soon</p>
+              </article>
+              <article>
+                <span id="completedCount">0</span>
+                <p>Finished</p>
+              </article>
+              <article>
+                <span id="studyStreak">0</span>
+                <p>Reading sessions</p>
+              </article>
+              <article>
+                <span id="goalProgressCount">0</span>
+                <p>Goals done</p>
+              </article>
+            </div>
+          </div>
+
+          <aside class="hero-panel">
+            <h2>Today's Focus</h2>
+            <p id="focusSummary">Log in and start planning your strongest revision day yet.</p>
+            <div class="focus-tags">
+              <span>Homework</span>
+              <span>Timetable</span>
+              <span>Topics</span>
+              <span>CBT</span>
+            </div>
+          </aside>
+        </header>
+
+        <div class="section-grid overview-grid">
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Countdown</p>
+                <h2>Exam Dates</h2>
+              </div>
+            </div>
+            <form id="countdownForm" class="inline-form">
+              <label>
+                Exam
+                <input type="text" id="countdownName" placeholder="WAEC 2026" required>
+              </label>
+              <label>
+                Date
+                <input type="date" id="countdownDate" required>
+              </label>
+              <button type="submit" class="primary-button">Add</button>
+            </form>
+            <div id="countdownList" class="countdown-list"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Analytics</p>
+                <h2>Performance Snapshot</h2>
+              </div>
+            </div>
+            <div id="analyticsSummary" class="analytics-summary"></div>
+            <div id="subjectPerformanceList" class="performance-list"></div>
+          </section>
+
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">AI Tutor</p>
+                <h2>Quick Ask</h2>
+              </div>
+              <p class="section-meta">Use AI right from your dashboard for fast explanations and revision help.</p>
+            </div>
+            <div class="ai-dashboard-box">
+              <p class="meta-line">Jump to the full AI tutor section or ask from there after the backend is running.</p>
+              <button type="button" class="primary-button" id="openAiSection">Open AI Tutor</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="plannerSection" class="app-section" hidden>
+        <div class="section-grid planner-grid">
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Homework</p>
+                <h2>Homework Tracker</h2>
+              </div>
+              <p class="section-meta">Track assignments, revision tasks, prep work, and class deadlines.</p>
+            </div>
+
+            <form id="assignmentForm" class="grid-form">
+              <label>
+                Task
+                <input type="text" id="assignmentTitle" placeholder="Maths exercise 5" required>
+              </label>
+              <label>
+                Subject
+                <input type="text" id="assignmentSubject" placeholder="Mathematics" required>
+              </label>
+              <label>
+                Due date
+                <input type="date" id="assignmentDueDate" required>
+              </label>
+              <label>
+                Priority
+                <select id="assignmentPriority">
+                  <option value="High">High</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </label>
+              <button type="submit" class="primary-button">Add Homework</button>
+            </form>
+            <div id="assignmentList" class="assignment-list"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Daily Goals</p>
+                <h2>Today's Targets</h2>
+              </div>
+            </div>
+            <form id="goalForm" class="stack-form">
+              <label>
+                New goal
+                <input type="text" id="goalInput" placeholder="Revise 3 chemistry topics" required>
+              </label>
+              <button type="submit" class="primary-button">Add Goal</button>
+            </form>
+            <div id="goalList" class="goal-list"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Focus</p>
+                <h2>Reading Timer</h2>
+              </div>
+            </div>
+            <div class="timer-face">
+              <p id="timerModeLabel">Reading Session</p>
+              <div id="timerDisplay">25:00</div>
+            </div>
+            <form id="timerSettings" class="stack-form">
+              <label>
+                Session minutes
+                <input type="number" id="sessionMinutes" min="5" max="90" value="25">
+              </label>
+              <div class="button-row">
+                <button type="button" id="startTimer" class="primary-button">Start</button>
+                <button type="button" id="pauseTimer" class="secondary-button">Pause</button>
+                <button type="button" id="resetTimer" class="secondary-button">Reset</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Timetable</p>
+                <h2>Study Timetable Generator</h2>
+              </div>
+              <p class="section-meta">Create a simple weekly reading timetable based on your subjects and time available.</p>
+            </div>
+            <form id="timetableForm" class="grid-form timetable-form">
+              <label>
+                Focus subjects
+                <input type="text" id="timetableSubjects" placeholder="Mathematics, English, Biology" required>
+              </label>
+              <label>
+                Hours per day
+                <input type="number" id="timetableHours" min="1" max="8" value="2" required>
+              </label>
+              <label>
+                Days per week
+                <input type="number" id="timetableDays" min="1" max="7" value="5" required>
+              </label>
+              <button type="submit" class="primary-button">Generate Timetable</button>
+            </form>
+            <div id="timetableList" class="timetable-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="examSection" class="app-section" hidden>
+        <div class="section-grid exam-grid">
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Exam Registration</p>
+                <h2>WAEC and JAMB Subjects</h2>
+              </div>
+              <p class="section-meta">Choose the 9 WAEC subjects and 4 JAMB subjects the student plans to offer.</p>
+            </div>
+
+            <form id="examSubjectsForm" class="stack-form">
+              <div class="subject-group">
+                <div>
+                  <h3 class="group-title">WAEC Subjects</h3>
+                  <p class="support-text">Enter exactly 9 subjects for WAEC registration.</p>
+                </div>
+                <div class="subjects-grid" id="waecSubjectsGrid">
+                  <label><span>WAEC Subject 1</span><input type="text" name="waecSubject1" placeholder="English Language" required></label>
+                  <label><span>WAEC Subject 2</span><input type="text" name="waecSubject2" placeholder="Mathematics" required></label>
+                  <label><span>WAEC Subject 3</span><input type="text" name="waecSubject3" placeholder="Biology" required></label>
+                  <label><span>WAEC Subject 4</span><input type="text" name="waecSubject4" placeholder="Chemistry" required></label>
+                  <label><span>WAEC Subject 5</span><input type="text" name="waecSubject5" placeholder="Physics" required></label>
+                  <label><span>WAEC Subject 6</span><input type="text" name="waecSubject6" placeholder="Civic Education" required></label>
+                  <label><span>WAEC Subject 7</span><input type="text" name="waecSubject7" placeholder="Economics" required></label>
+                  <label><span>WAEC Subject 8</span><input type="text" name="waecSubject8" placeholder="Agricultural Science" required></label>
+                  <label><span>WAEC Subject 9</span><input type="text" name="waecSubject9" placeholder="Geography" required></label>
+                </div>
+              </div>
+
+              <div class="subject-group">
+                <div>
+                  <h3 class="group-title">JAMB Subjects</h3>
+                  <p class="support-text">Enter the 4 subjects for JAMB. English is usually compulsory.</p>
+                </div>
+                <div class="subjects-grid jamb-grid" id="jambSubjectsGrid">
+                  <label><span>JAMB Subject 1</span><input type="text" name="jambSubject1" placeholder="Use of English" required></label>
+                  <label><span>JAMB Subject 2</span><input type="text" name="jambSubject2" placeholder="Mathematics" required></label>
+                  <label><span>JAMB Subject 3</span><input type="text" name="jambSubject3" placeholder="Physics" required></label>
+                  <label><span>JAMB Subject 4</span><input type="text" name="jambSubject4" placeholder="Chemistry" required></label>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button type="submit" class="primary-button">Save Registration</button>
+                <button type="button" id="clearRegistration" class="secondary-button">Clear Registration</button>
+              </div>
+            </form>
+            <div id="examSavedMessage" class="support-text">Registration details are stored in your browser.</div>
+            <div id="registrationSummary" class="registration-summary"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Course Guide</p>
+                <h2>Subject Combination Checker</h2>
+              </div>
+            </div>
+            <form id="courseCheckForm" class="stack-form">
+              <label>
+                Desired course
+                <select id="desiredCourse">
+                  <option value="Medicine">Medicine</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Law">Law</option>
+                  <option value="Accounting">Accounting</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Mass Communication">Mass Communication</option>
+                </select>
+              </label>
+              <button type="submit" class="primary-button">Check Subjects</button>
+            </form>
+            <div id="courseCheckResult" class="course-check-result"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Mastery</p>
+                <h2>Topic Tracker</h2>
+              </div>
+            </div>
+            <form id="topicForm" class="stack-form">
+              <label>
+                Subject
+                <input type="text" id="topicSubject" placeholder="Biology" required>
+              </label>
+              <label>
+                Topic
+                <input type="text" id="topicName" placeholder="Photosynthesis" required>
+              </label>
+              <label>
+                Status
+                <select id="topicStatus">
+                  <option value="Not Started">Not Started</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Strong">Strong</option>
+                  <option value="Needs Help">Needs Help</option>
+                </select>
+              </label>
+              <button type="submit" class="primary-button">Add Topic</button>
+            </form>
+            <div id="topicList" class="topic-list"></div>
+          </section>
+
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Performance</p>
+                <h2>Score Tracker</h2>
+              </div>
+              <p class="section-meta">Track continuous assessment and exam scores with WAEC-style grades.</p>
+            </div>
+
+            <form id="courseForm" class="grid-form course-form">
+              <label>
+                Subject
+                <input type="text" id="courseName" placeholder="English Language" required>
+              </label>
+              <label>
+                CA score
+                <input type="number" id="courseCredits" min="0" max="40" value="30" required>
+              </label>
+              <label>
+                Exam score
+                <input type="number" id="courseGrade" min="0" max="60" value="45" required>
+              </label>
+              <button type="submit" class="primary-button">Add Result</button>
+            </form>
+
+            <div class="gpa-summary">
+              <div>
+                <span id="gpaValue">0.00</span>
+                <p>Average score</p>
+              </div>
+              <button type="button" id="clearCourses" class="secondary-button">Clear Results</button>
+            </div>
+            <div id="courseList" class="course-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="practiceSection" class="app-section" hidden>
+        <div class="section-grid practice-grid">
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">CBT Practice</p>
+                <h2>Practice Test Mode</h2>
+              </div>
+              <p class="section-meta">Use the built-in sample CBT questions while you prepare a larger question bank.</p>
+            </div>
+            <form id="quizSetupForm" class="inline-form">
+              <label>
+                Subject
+                <select id="quizSubject">
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="English">English</option>
+                  <option value="Biology">Biology</option>
+                </select>
+              </label>
+              <button type="submit" class="primary-button">Start Practice</button>
+            </form>
+            <div id="quizArea" class="quiz-area">
+              <div class="empty-state">Choose a subject to start a short CBT practice session.</div>
+            </div>
+            <div id="quizHistory" class="quiz-history"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="aiSection" class="app-section" hidden>
+        <div class="section-grid">
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">AI Tutor</p>
+                <h2>Study Assistant</h2>
+              </div>
+              <p class="section-meta">Ask for topic explanations, revision summaries, study plans, and WAEC/JAMB-style guidance.</p>
+            </div>
+            <div class="ai-actions">
+              <button type="button" class="secondary-button ai-action-button" data-template="Explain this topic for a Nigerian secondary school student in simple terms: ">Explain Topic</button>
+              <button type="button" class="secondary-button ai-action-button" data-template="Generate 10 WAEC or JAMB style multiple choice questions with answers on this topic: ">Generate Quiz</button>
+              <button type="button" class="secondary-button ai-action-button" data-template="Summarize these notes into short revision points: ">Summarize Notes</button>
+              <button type="button" class="secondary-button ai-action-button" data-template="Create a one-week study plan for these subjects and weak areas: ">Make Study Plan</button>
+            </div>
+            <div id="aiMessages" class="ai-messages">
+              <article class="ai-message ai-message-assistant">
+                <h3>Student Helper AI</h3>
+                <p class="meta-line">Ask a question like "Explain photosynthesis for SS2" or "Give me a one-week JAMB reading plan for Maths and Physics."</p>
+              </article>
+            </div>
+            <form id="aiForm" class="stack-form">
+              <label>
+                Ask the AI tutor
+                <textarea id="aiPrompt" rows="5" placeholder="Explain osmosis in simple terms for WAEC preparation..." required></textarea>
+              </label>
+              <div class="button-row">
+                <button type="submit" class="primary-button">Ask AI</button>
+                <button type="button" id="clearAiChat" class="secondary-button">Clear Chat</button>
+              </div>
+              <p id="aiStatus" class="support-text">AI replies will appear here after the Gemini backend is configured.</p>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section id="notesSection" class="app-section" hidden>
+        <div class="section-grid notes-grid">
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Notes</p>
+                <h2>Revision Notes Bank</h2>
+              </div>
+            </div>
+            <form id="notesForm" class="stack-form">
+              <label>
+                Subject
+                <input type="text" id="noteSubject" placeholder="Government" required>
+              </label>
+              <label>
+                Title
+                <input type="text" id="noteTitle" placeholder="Separation of powers" required>
+              </label>
+              <label>
+                Content
+                <textarea id="notesInput" rows="8" placeholder="Save lesson summaries, difficult points, formulas, or revision tips..." required></textarea>
+              </label>
+              <button type="submit" class="primary-button">Save Note</button>
+            </form>
+            <p id="notesSavedMessage" class="support-text">Notes are stored in your browser.</p>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Search</p>
+                <h2>Find Notes Quickly</h2>
+              </div>
+            </div>
+            <label>
+              Search notes
+              <input type="text" id="noteSearch" placeholder="Search by subject, title, or keyword">
+            </label>
+            <div id="notesList" class="notes-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
