@@ -54,6 +54,7 @@
         <button class="nav-button" data-target="practiceSection">Practice</button>
         <button class="nav-button" data-target="aiSection">AI Tutor</button>
         <button class="nav-button" data-target="notesSection">Notes Bank</button>
+        <button class="nav-button" data-target="adminSection">Admin</button>
       </nav>
 
       <div class="account-panel">
@@ -430,47 +431,6 @@
             <div id="quizHistory" class="quiz-history"></div>
           </section>
 
-          <section class="card card-wide">
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Question Bank</p>
-                <h2>Bulk Upload CBT Questions</h2>
-              </div>
-              <p class="section-meta">Upload JSON or CSV questions in bulk and save them to Firestore for the live CBT section.</p>
-            </div>
-            <form id="questionUploadForm" class="stack-form">
-              <div class="grid-form upload-grid">
-                <label>
-                  Default subject
-                  <input type="text" id="uploadSubject" placeholder="Mathematics" required>
-                </label>
-                <label>
-                  Format
-                  <select id="uploadFormat">
-                    <option value="json">JSON Array</option>
-                    <option value="csv">CSV</option>
-                  </select>
-                </label>
-                <label>
-                  File upload
-                  <input type="file" id="questionFile" accept=".json,.csv,text/csv,application/json">
-                </label>
-                <div class="upload-help">
-                  <p class="meta-line">CSV columns: `subject,question,optionA,optionB,optionC,optionD,answer,explanation`</p>
-                </div>
-              </div>
-              <label>
-                Paste JSON or CSV
-                <textarea id="questionBulkInput" rows="9" placeholder='[{"subject":"Mathematics","question":"2+2?","optionA":"2","optionB":"3","optionC":"4","optionD":"5","answer":"C","explanation":"2 + 2 = 4"}]'></textarea>
-              </label>
-              <div class="button-row">
-                <button type="submit" class="primary-button">Upload Questions</button>
-                <button type="button" id="loadQuestionBank" class="secondary-button">Refresh Question Bank</button>
-              </div>
-              <p id="questionUploadStatus" class="support-text">Uploaded questions will be used by CBT practice after refresh.</p>
-            </form>
-            <div id="questionBankStats" class="question-bank-stats"></div>
-          </section>
         </div>
       </section>
 
@@ -550,6 +510,52 @@
               <input type="text" id="noteSearch" placeholder="Search by subject, title, or keyword">
             </label>
             <div id="notesList" class="notes-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="adminSection" class="app-section" hidden>
+        <div class="section-grid">
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Admin</p>
+                <h2>Question Bank Manager</h2>
+              </div>
+              <p class="section-meta">Upload JSON or CSV questions in bulk and save them to Firestore for the live CBT section.</p>
+            </div>
+            <form id="questionUploadForm" class="stack-form">
+              <div class="grid-form upload-grid">
+                <label>
+                  Default subject
+                  <input type="text" id="uploadSubject" placeholder="Mathematics" required>
+                </label>
+                <label>
+                  Format
+                  <select id="uploadFormat">
+                    <option value="json">JSON Array</option>
+                    <option value="csv">CSV</option>
+                  </select>
+                </label>
+                <label>
+                  File upload
+                  <input type="file" id="questionFile" accept=".json,.csv,text/csv,application/json">
+                </label>
+                <div class="upload-help">
+                  <p class="meta-line">CSV columns: `subject,question,optionA,optionB,optionC,optionD,answer,explanation`</p>
+                </div>
+              </div>
+              <label>
+                Paste JSON or CSV
+                <textarea id="questionBulkInput" rows="9" placeholder='[{"subject":"Mathematics","question":"2+2?","optionA":"2","optionB":"3","optionC":"4","optionD":"5","answer":"C","explanation":"2 + 2 = 4"}]'></textarea>
+              </label>
+              <div class="button-row">
+                <button type="submit" class="primary-button">Upload Questions</button>
+                <button type="button" id="loadQuestionBank" class="secondary-button">Refresh Question Bank</button>
+              </div>
+              <p id="questionUploadStatus" class="support-text">Uploaded questions will be used by CBT practice after refresh.</p>
+            </form>
+            <div id="questionBankStats" class="question-bank-stats"></div>
           </section>
         </div>
       </section>
