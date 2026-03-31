@@ -6,6 +6,18 @@ import {
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  writeBatch
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAGPnBIjyQfOAms0SrAqqFMn7EwWqQIX64",
@@ -19,6 +31,7 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 
 const authScreen = document.getElementById("authScreen");
 const appShell = document.getElementById("appShell");
@@ -72,6 +85,14 @@ const quizSetupForm = document.getElementById("quizSetupForm");
 const quizSubject = document.getElementById("quizSubject");
 const quizArea = document.getElementById("quizArea");
 const quizHistory = document.getElementById("quizHistory");
+const questionUploadForm = document.getElementById("questionUploadForm");
+const uploadSubject = document.getElementById("uploadSubject");
+const uploadFormat = document.getElementById("uploadFormat");
+const questionFile = document.getElementById("questionFile");
+const questionBulkInput = document.getElementById("questionBulkInput");
+const questionUploadStatus = document.getElementById("questionUploadStatus");
+const questionBankStats = document.getElementById("questionBankStats");
+const loadQuestionBankButton = document.getElementById("loadQuestionBank");
 const aiForm = document.getElementById("aiForm");
 const aiPrompt = document.getElementById("aiPrompt");
 const aiMessages = document.getElementById("aiMessages");
@@ -138,6 +159,8 @@ let appState = createEmptyState();
 let timerState = { remainingSeconds: Number(sessionMinutesInput.value) * 60, intervalId: null, running: false };
 let quizState = { subject: null, questions: [], currentIndex: 0, score: 0, answered: false };
 let aiChat = [];
+let cloudSaveTimeout = null;
+let uploadedQuestions = [];
 
 function createEmptyState() {
   return {
@@ -152,6 +175,111 @@ function createEmptyState() {
     sessions: 0,
     quizHistory: []
   };
+}
+
+function getUserStateRef(uid = currentUser?.uid) {
+  return uid ? doc(db, "users", uid, "private", "dashboard") : null;
+}
+
+function getQuestionBankRef() {
+  return collection(db, "questionBank");
+}
+
+function normalizeQuestion(rawQuestion, fallbackSubject = "General") {
+  return {
+    id: rawQuestion.id || crypto.randomUUID(),
+    subject: String(rawQuestion.subject || fallbackSubject).trim(),
+    question: String(rawQuestion.question || "").trim(),
+    options: [
+      String(rawQuestion.optionA || rawQuestion.options?.[0] || "").trim(),
+      String(rawQuestion.optionB || rawQuestion.options?.[1] || "").trim(),
+      String(rawQuestion.optionC || rawQuestion.options?.[2] || "").trim(),
+      String(rawQuestion.optionD || rawQuestion.options?.[3] || "").trim()
+    ],
+    answer: String(rawQuestion.answer || "").trim().toUpperCase(),
+    explanation: String(rawQuestion.explanation || "").trim()
+  };
+}
+
+function parseCsvQuestions(csvText, fallbackSubject) {
+  const lines = csvText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) {
+    return [];
+  }
+
+  const headers = lines[0].split(",").map((item) => item.trim());
+  return lines.slice(1).map((line) => {
+    const values = line.split(",").map((item) => item.trim());
+    const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
+    return normalizeQuestion(row, fallbackSubject);
+  }).filter((question) => question.question && question.options.every(Boolean) && question.answer);
+}
+
+async function readUploadPayload() {
+  if (questionFile.files?.[0]) {
+    return questionFile.files[0].text();
+  }
+  return questionBulkInput.value.trim();
+}
+
+async function loadQuestionBank() {
+  try {
+    const questionQuery = query(getQuestionBankRef(), orderBy("subject"));
+    const snapshot = await getDocs(questionQuery);
+    uploadedQuestions = snapshot.docs.map((questionDoc) => {
+      const data = questionDoc.data();
+      return normalizeQuestion({ ...data, id: questionDoc.id }, data.subject);
+    });
+    renderQuestionBankStats();
+  } catch (error) {
+    questionUploadStatus.textContent = `Could not load question bank. ${error.message}`;
+  }
+}
+
+function queueCloudSave() {
+  if (!currentUser) {
+    return;
+  }
+
+  if (cloudSaveTimeout) {
+    clearTimeout(cloudSaveTimeout);
+  }
+
+  cloudSaveTimeout = setTimeout(async () => {
+    try {
+      await setDoc(getUserStateRef(), {
+        ...appState,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error("Cloud save failed:", error);
+    }
+  }, 350);
+}
+
+async function loadCloudState(uid) {
+  try {
+    const snapshot = await getDoc(getUserStateRef(uid));
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const data = snapshot.data();
+    appState = {
+      assignments: data.assignments || [],
+      goals: data.goals || [],
+      timetable: data.timetable || [],
+      countdowns: data.countdowns || [],
+      registration: data.registration || { waecSubjects: [], jambSubjects: [] },
+      topics: data.topics || [],
+      scores: data.scores || [],
+      notes: data.notes || [],
+      sessions: data.sessions || 0,
+      quizHistory: data.quizHistory || []
+    };
+  } catch (error) {
+    console.error("Cloud load failed:", error);
+  }
 }
 
 function appendAiMessage(role, text) {
@@ -207,6 +335,11 @@ function loadScopedStorage(key, fallback) {
 
 function saveScopedStorage(key, value) {
   localStorage.setItem(getScopedKey(key), JSON.stringify(value));
+}
+
+function persistScopedState(key, value) {
+  saveScopedStorage(key, value);
+  queueCloudSave();
 }
 
 function loadState() {
@@ -546,12 +679,33 @@ function renderQuizHistory() {
   `).join("");
 }
 
+function renderQuestionBankStats() {
+  const questionCount = uploadedQuestions.length;
+  const subjectCount = new Set(uploadedQuestions.map((question) => question.subject)).size;
+  const sourceText = questionCount ? "Firestore question bank loaded." : "No uploaded Firestore questions yet. Sample CBT questions are still available.";
+
+  questionBankStats.innerHTML = `
+    <article class="question-bank-tile">
+      <span>${questionCount}</span>
+      <p class="meta-line">Uploaded questions</p>
+    </article>
+    <article class="question-bank-tile">
+      <span>${subjectCount}</span>
+      <p class="meta-line">Subjects in bank</p>
+    </article>
+    <article class="question-bank-tile">
+      <span>${questionCount ? "Live" : "Sample"}</span>
+      <p class="meta-line">${sourceText}</p>
+    </article>
+  `;
+}
+
 function renderQuizQuestion() {
   const question = quizState.questions[quizState.currentIndex];
   if (!question) {
     const date = new Date().toLocaleDateString();
     appState.quizHistory.unshift({ id: crypto.randomUUID(), subject: quizState.subject, score: quizState.score, total: quizState.questions.length, date });
-    saveScopedStorage(storageKeys.quizHistory, appState.quizHistory);
+      persistScopedState(storageKeys.quizHistory, appState.quizHistory);
     renderQuizHistory();
     quizArea.innerHTML = `
       <div class="quiz-area">
@@ -584,7 +738,9 @@ function renderQuizQuestion() {
 }
 
 function startQuiz(subject) {
-  quizState = { subject, questions: sampleQuestionBank[subject] || [], currentIndex: 0, score: 0, answered: false };
+  const bankQuestions = uploadedQuestions.filter((question) => question.subject.toLowerCase() === subject.toLowerCase());
+  const activeQuestions = bankQuestions.length ? bankQuestions : (sampleQuestionBank[subject] || []);
+  quizState = { subject, questions: activeQuestions, currentIndex: 0, score: 0, answered: false };
   renderQuizQuestion();
 }
 
@@ -658,6 +814,7 @@ function refreshAllViews() {
   renderAnalytics();
   renderNotes();
   renderQuizHistory();
+  renderQuestionBankStats();
   updateSummary();
   resetTimerState();
 }
@@ -666,54 +823,54 @@ function handleAction(id, type) {
   switch (type) {
     case "toggle-assignment":
       appState.assignments = appState.assignments.map((item) => item.id === id ? { ...item, completed: !item.completed } : item);
-      saveScopedStorage(storageKeys.assignments, appState.assignments);
+      persistScopedState(storageKeys.assignments, appState.assignments);
       renderAssignments();
       updateSummary();
       return;
     case "delete-assignment":
       appState.assignments = appState.assignments.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.assignments, appState.assignments);
+      persistScopedState(storageKeys.assignments, appState.assignments);
       renderAssignments();
       updateSummary();
       return;
     case "toggle-goal":
       appState.goals = appState.goals.map((item) => item.id === id ? { ...item, completed: !item.completed } : item);
-      saveScopedStorage(storageKeys.goals, appState.goals);
+      persistScopedState(storageKeys.goals, appState.goals);
       renderGoals();
       updateSummary();
       return;
     case "delete-goal":
       appState.goals = appState.goals.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.goals, appState.goals);
+      persistScopedState(storageKeys.goals, appState.goals);
       renderGoals();
       updateSummary();
       return;
     case "delete-slot":
       appState.timetable = appState.timetable.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.timetable, appState.timetable);
+      persistScopedState(storageKeys.timetable, appState.timetable);
       renderTimetable();
       return;
     case "delete-countdown":
       appState.countdowns = appState.countdowns.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.countdowns, appState.countdowns);
+      persistScopedState(storageKeys.countdowns, appState.countdowns);
       renderCountdowns();
       return;
     case "delete-topic":
       appState.topics = appState.topics.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.topics, appState.topics);
+      persistScopedState(storageKeys.topics, appState.topics);
       renderTopics();
       renderAnalytics();
       updateSummary();
       return;
     case "delete-score":
       appState.scores = appState.scores.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.scores, appState.scores);
+      persistScopedState(storageKeys.scores, appState.scores);
       renderScores();
       renderAnalytics();
       return;
     case "delete-note":
       appState.notes = appState.notes.filter((item) => item.id !== id);
-      saveScopedStorage(storageKeys.notes, appState.notes);
+      persistScopedState(storageKeys.notes, appState.notes);
       renderNotes();
       return;
     default:
@@ -782,7 +939,7 @@ assignmentForm.addEventListener("submit", (event) => {
     priority: document.getElementById("assignmentPriority").value,
     completed: false
   });
-  saveScopedStorage(storageKeys.assignments, appState.assignments);
+  persistScopedState(storageKeys.assignments, appState.assignments);
   assignmentForm.reset();
   document.getElementById("assignmentPriority").value = "Medium";
   renderAssignments();
@@ -797,7 +954,7 @@ assignmentList.addEventListener("click", (event) => {
 goalForm.addEventListener("submit", (event) => {
   event.preventDefault();
   appState.goals.unshift({ id: crypto.randomUUID(), text: goalInput.value.trim(), completed: false });
-  saveScopedStorage(storageKeys.goals, appState.goals);
+  persistScopedState(storageKeys.goals, appState.goals);
   goalForm.reset();
   renderGoals();
   updateSummary();
@@ -820,7 +977,7 @@ timetableForm.addEventListener("submit", (event) => {
     subject: subjects[index % subjects.length] || "General Revision",
     hours
   }));
-  saveScopedStorage(storageKeys.timetable, appState.timetable);
+  persistScopedState(storageKeys.timetable, appState.timetable);
   renderTimetable();
 });
 
@@ -836,7 +993,7 @@ countdownForm.addEventListener("submit", (event) => {
     name: document.getElementById("countdownName").value.trim(),
     date: document.getElementById("countdownDate").value
   });
-  saveScopedStorage(storageKeys.countdowns, appState.countdowns);
+  persistScopedState(storageKeys.countdowns, appState.countdowns);
   countdownForm.reset();
   renderCountdowns();
 });
@@ -860,7 +1017,7 @@ examSubjectsForm.addEventListener("submit", (event) => {
     return;
   }
   appState.registration = { waecSubjects, jambSubjects };
-  saveScopedStorage(storageKeys.registration, appState.registration);
+  persistScopedState(storageKeys.registration, appState.registration);
   examSavedMessage.textContent = "Exam registration saved.";
   renderRegistration();
   renderCourseCheck();
@@ -868,7 +1025,7 @@ examSubjectsForm.addEventListener("submit", (event) => {
 
 clearRegistrationButton.addEventListener("click", () => {
   appState.registration = { waecSubjects: [], jambSubjects: [] };
-  saveScopedStorage(storageKeys.registration, appState.registration);
+  persistScopedState(storageKeys.registration, appState.registration);
   examSubjectsForm.reset();
   examSavedMessage.textContent = "Exam registration cleared.";
   renderRegistration();
@@ -888,7 +1045,7 @@ topicForm.addEventListener("submit", (event) => {
     topic: document.getElementById("topicName").value.trim(),
     status: document.getElementById("topicStatus").value
   });
-  saveScopedStorage(storageKeys.topics, appState.topics);
+  persistScopedState(storageKeys.topics, appState.topics);
   topicForm.reset();
   renderTopics();
   renderAnalytics();
@@ -912,7 +1069,7 @@ courseForm.addEventListener("submit", (event) => {
     totalScore,
     gradeLabel: scoreToGrade(totalScore)
   });
-  saveScopedStorage(storageKeys.scores, appState.scores);
+  persistScopedState(storageKeys.scores, appState.scores);
   courseForm.reset();
   document.getElementById("courseCredits").value = "30";
   document.getElementById("courseGrade").value = "45";
@@ -927,7 +1084,7 @@ courseList.addEventListener("click", (event) => {
 
 clearCoursesButton.addEventListener("click", () => {
   appState.scores = [];
-  saveScopedStorage(storageKeys.scores, appState.scores);
+  persistScopedState(storageKeys.scores, appState.scores);
   renderScores();
   renderAnalytics();
 });
@@ -945,7 +1102,7 @@ notesForm.addEventListener("submit", (event) => {
     title: noteTitleInput.value.trim(),
     content: notesInput.value.trim()
   });
-  saveScopedStorage(storageKeys.notes, appState.notes);
+  persistScopedState(storageKeys.notes, appState.notes);
   notesSavedMessage.textContent = "Note saved.";
   notesForm.reset();
   renderNotes();
@@ -957,6 +1114,57 @@ notesList.addEventListener("click", (event) => {
 });
 
 noteSearch.addEventListener("input", renderNotes);
+
+questionUploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentUser) {
+    questionUploadStatus.textContent = "Sign in before uploading questions.";
+    return;
+  }
+
+  const payload = await readUploadPayload();
+  const fallbackSubject = uploadSubject.value.trim() || "General";
+  const format = uploadFormat.value;
+
+  if (!payload) {
+    questionUploadStatus.textContent = "Add a file or paste question content first.";
+    return;
+  }
+
+  try {
+    const parsedQuestions = format === "json"
+      ? JSON.parse(payload).map((item) => normalizeQuestion(item, fallbackSubject))
+      : parseCsvQuestions(payload, fallbackSubject);
+
+    const validQuestions = parsedQuestions.filter((question) => question.question && question.options.every(Boolean) && question.answer);
+    if (!validQuestions.length) {
+      throw new Error("No valid questions were found in the upload.");
+    }
+
+    const batch = writeBatch(db);
+    validQuestions.forEach((question) => {
+      const questionRef = doc(getQuestionBankRef());
+      batch.set(questionRef, {
+        ...question,
+        uploadedBy: currentUser.uid,
+        uploadedAt: serverTimestamp()
+      });
+    });
+    await batch.commit();
+
+    questionUploadForm.reset();
+    questionUploadStatus.textContent = `${validQuestions.length} question(s) uploaded successfully.`;
+    await loadQuestionBank();
+  } catch (error) {
+    questionUploadStatus.textContent = `Upload failed. ${error.message}`;
+  }
+});
+
+loadQuestionBankButton.addEventListener("click", async () => {
+  questionUploadStatus.textContent = "Refreshing question bank...";
+  await loadQuestionBank();
+  questionUploadStatus.textContent = "Question bank refreshed.";
+});
 
 aiForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1008,7 +1216,7 @@ startTimerButton.addEventListener("click", () => {
       timerState.running = false;
       timerModeLabel.textContent = "Session Complete";
       appState.sessions += 1;
-      saveScopedStorage(storageKeys.sessions, appState.sessions);
+      persistScopedState(storageKeys.sessions, appState.sessions);
       updateSummary();
     }
   }, 1000);
@@ -1026,20 +1234,25 @@ sessionMinutesInput.addEventListener("change", () => {
   if (!timerState.running) resetTimerState();
 });
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   setAuthStateUi(user);
   if (user) {
     loadState();
+    await loadCloudState(user.uid);
+    await loadQuestionBank();
     refreshAllViews();
   } else {
     appState = createEmptyState();
     quizState = { subject: null, questions: [], currentIndex: 0, score: 0, answered: false };
+    uploadedQuestions = [];
+    renderQuestionBankStats();
   }
 });
 
 setAuthStateUi(null);
 renderCourseCheck();
 renderAiChat();
+renderQuestionBankStats();
 showSection("overviewSection");
 resetTimerState();

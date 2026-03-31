@@ -272,6 +272,18 @@ textarea {
   align-items: end;
 }
 
+.upload-grid {
+  grid-template-columns: 1fr 1fr 1fr 1.1fr;
+  align-items: end;
+}
+
+.upload-help {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+  background: rgba(255, 255, 255, 0.55);
+}
+
 .stack-form,
 .auth-form {
   display: grid;
@@ -365,7 +377,8 @@ textarea {
 .countdown-list,
 .performance-list,
 .timetable-list,
-.quiz-history {
+.quiz-history,
+.question-bank-stats {
   display: grid;
   gap: 12px;
   margin-top: 18px;
@@ -531,6 +544,19 @@ textarea {
   background: linear-gradient(180deg, rgba(216, 238, 232, 0.75), rgba(255, 250, 242, 0.9));
 }
 
+.question-bank-tile {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.question-bank-tile span {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
 .ai-actions {
   display: flex;
   flex-wrap: wrap;
@@ -604,11 +630,19 @@ textarea {
     position: static;
   }
 
+  .side-nav {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
   .hero,
   .section-grid,
   .grid-form,
   .course-form,
   .timetable-form,
+  .upload-grid,
   .inline-form,
   .auth-screen-card,
   .subjects-grid,
@@ -628,5 +662,13 @@ textarea {
 
   .card-wide {
     grid-column: auto;
+  }
+
+  .app-shell {
+    width: min(100%, calc(100% - 20px));
+  }
+
+  .content-shell {
+    gap: 18px;
   }
 }
