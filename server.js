@@ -4,6 +4,7 @@ const path = require("path");
 
 const PORT = process.env.PORT || 5500;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const ADMIN_PIN = process.env.ADMIN_PIN;
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -89,6 +90,28 @@ async function handleAiChat(req, res) {
   });
 }
 
+function handleAdminVerify(req, res) {
+  if (!ADMIN_PIN) {
+    sendJson(res, 500, { error: "ADMIN_PIN is not set on the server." });
+    return;
+  }
+
+  let body = "";
+  req.on("data", (chunk) => {
+    body += chunk;
+  });
+
+  req.on("end", () => {
+    try {
+      const parsed = JSON.parse(body || "{}");
+      const pin = String(parsed.pin || "").trim();
+      sendJson(res, 200, { valid: pin === ADMIN_PIN });
+    } catch (error) {
+      sendJson(res, 400, { error: "Invalid request body." });
+    }
+  });
+}
+
 function serveStatic(req, res) {
   const requestPath = req.url === "/" ? "/index.html" : req.url;
   const safePath = path.normalize(requestPath).replace(/^(\.\.[/\\])+/, "");
@@ -115,6 +138,11 @@ const server = http.createServer((req, res) => {
 
   if (req.url === "/api/ai-chat" && req.method === "POST") {
     handleAiChat(req, res);
+    return;
+  }
+
+  if (req.url === "/api/admin-verify" && req.method === "POST") {
+    handleAdminVerify(req, res);
     return;
   }
 

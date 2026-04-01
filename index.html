@@ -65,6 +65,24 @@
     </aside>
 
     <main class="content-shell">
+      <section class="topbar">
+        <div class="topbar-copy">
+          <p class="eyebrow">Student Command Center</p>
+          <h1>Student Helper NG</h1>
+          <p id="todayLabel" class="support-text">Ready for another focused study session.</p>
+        </div>
+        <div class="topbar-meta">
+          <article class="topbar-chip">
+            <span>Today</span>
+            <strong id="currentDateLabel">Loading date...</strong>
+          </article>
+          <article class="topbar-chip">
+            <span>Status</span>
+            <strong id="syncStatusLabel">Synced locally</strong>
+          </article>
+        </div>
+      </section>
+
       <section id="overviewSection" class="app-section active-section">
         <header class="hero hero-dashboard">
           <div class="hero-copy">
@@ -150,6 +168,57 @@
             <div class="ai-dashboard-box">
               <p class="meta-line">Jump to the full AI tutor section or ask from there after the backend is running.</p>
               <button type="button" class="primary-button" id="openAiSection">Open AI Tutor</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Momentum</p>
+                <h2>Study Persona</h2>
+              </div>
+            </div>
+            <div id="studyPersonaCard" class="spotlight-card"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Boost</p>
+                <h2>Motivation Pulse</h2>
+              </div>
+            </div>
+            <div class="spotlight-card">
+              <p id="motivationTitle" class="spotlight-title">Keep moving.</p>
+              <p id="motivationText" class="meta-line">Small revision sessions done consistently beat cramming.</p>
+            </div>
+          </section>
+
+          <section class="card card-wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Quick Actions</p>
+                <h2>Jump Faster</h2>
+              </div>
+              <p class="section-meta">Open the most useful pages instantly when you know what you need next.</p>
+            </div>
+            <div class="quick-actions">
+              <button type="button" class="quick-action" data-target-section="plannerSection">
+                <strong>Plan Today</strong>
+                <span>Homework, goals, and reading sessions</span>
+              </button>
+              <button type="button" class="quick-action" data-target-section="examSection">
+                <strong>Prep Exams</strong>
+                <span>Subjects, topics, and score tracking</span>
+              </button>
+              <button type="button" class="quick-action" data-target-section="practiceSection">
+                <strong>Take CBT</strong>
+                <span>Practice and review question performance</span>
+              </button>
+              <button type="button" class="quick-action" data-target-section="aiSection">
+                <strong>Ask AI</strong>
+                <span>Explain topics and build revision plans</span>
+              </button>
             </div>
           </section>
         </div>
@@ -524,38 +593,54 @@
               </div>
               <p class="section-meta">Upload JSON or CSV questions in bulk and save them to Firestore for the live CBT section.</p>
             </div>
-            <form id="questionUploadForm" class="stack-form">
-              <div class="grid-form upload-grid">
+            <div id="adminPinGate" class="admin-pin-gate">
+              <form id="adminPinForm" class="stack-form">
                 <label>
-                  Default subject
-                  <input type="text" id="uploadSubject" placeholder="Mathematics" required>
+                  Admin PIN
+                  <input type="password" id="adminPinInput" placeholder="Enter admin pin" required>
                 </label>
-                <label>
-                  Format
-                  <select id="uploadFormat">
-                    <option value="json">JSON Array</option>
-                    <option value="csv">CSV</option>
-                  </select>
-                </label>
-                <label>
-                  File upload
-                  <input type="file" id="questionFile" accept=".json,.csv,text/csv,application/json">
-                </label>
-                <div class="upload-help">
-                  <p class="meta-line">CSV columns: `subject,question,optionA,optionB,optionC,optionD,answer,explanation`</p>
+                <div class="button-row">
+                  <button type="submit" class="primary-button">Unlock Admin</button>
                 </div>
-              </div>
-              <label>
-                Paste JSON or CSV
-                <textarea id="questionBulkInput" rows="9" placeholder='[{"subject":"Mathematics","question":"2+2?","optionA":"2","optionB":"3","optionC":"4","optionD":"5","answer":"C","explanation":"2 + 2 = 4"}]'></textarea>
-              </label>
-              <div class="button-row">
-                <button type="submit" class="primary-button">Upload Questions</button>
-                <button type="button" id="loadQuestionBank" class="secondary-button">Refresh Question Bank</button>
-              </div>
-              <p id="questionUploadStatus" class="support-text">Uploaded questions will be used by CBT practice after refresh.</p>
-            </form>
-            <div id="questionBankStats" class="question-bank-stats"></div>
+                <p id="adminPinStatus" class="support-text">Enter the admin PIN to manage the shared question bank.</p>
+              </form>
+            </div>
+
+            <div id="adminControls" hidden>
+              <form id="questionUploadForm" class="stack-form">
+                <div class="grid-form upload-grid">
+                  <label>
+                    Default subject
+                    <input type="text" id="uploadSubject" placeholder="Mathematics" required>
+                  </label>
+                  <label>
+                    Format
+                    <select id="uploadFormat">
+                      <option value="json">JSON Array</option>
+                      <option value="csv">CSV</option>
+                    </select>
+                  </label>
+                  <label>
+                    File upload
+                    <input type="file" id="questionFile" accept=".json,.csv,text/csv,application/json">
+                  </label>
+                  <div class="upload-help">
+                    <p class="meta-line">CSV columns: `subject,question,optionA,optionB,optionC,optionD,answer,explanation`</p>
+                  </div>
+                </div>
+                <label>
+                  Paste JSON or CSV
+                  <textarea id="questionBulkInput" rows="9" placeholder='[{"subject":"Mathematics","question":"2+2?","optionA":"2","optionB":"3","optionC":"4","optionD":"5","answer":"C","explanation":"2 + 2 = 4"}]'></textarea>
+                </label>
+                <div class="button-row">
+                  <button type="submit" class="primary-button">Upload Questions</button>
+                  <button type="button" id="loadQuestionBank" class="secondary-button">Refresh Question Bank</button>
+                  <button type="button" id="lockAdminButton" class="ghost-button">Lock Admin</button>
+                </div>
+                <p id="questionUploadStatus" class="support-text">Uploaded questions will be used by CBT practice after refresh.</p>
+              </form>
+              <div id="questionBankStats" class="question-bank-stats"></div>
+            </div>
           </section>
         </div>
       </section>

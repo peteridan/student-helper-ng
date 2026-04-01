@@ -46,6 +46,13 @@ const authStatusText = document.getElementById("authStatusText");
 const navButtons = Array.from(document.querySelectorAll(".nav-button"));
 const openAiSectionButton = document.getElementById("openAiSection");
 const appSections = Array.from(document.querySelectorAll(".app-section"));
+const currentDateLabel = document.getElementById("currentDateLabel");
+const syncStatusLabel = document.getElementById("syncStatusLabel");
+const todayLabel = document.getElementById("todayLabel");
+const studyPersonaCard = document.getElementById("studyPersonaCard");
+const motivationTitle = document.getElementById("motivationTitle");
+const motivationText = document.getElementById("motivationText");
+const quickActionButtons = Array.from(document.querySelectorAll(".quick-action"));
 
 const assignmentForm = document.getElementById("assignmentForm");
 const assignmentList = document.getElementById("assignmentList");
@@ -93,6 +100,12 @@ const questionBulkInput = document.getElementById("questionBulkInput");
 const questionUploadStatus = document.getElementById("questionUploadStatus");
 const questionBankStats = document.getElementById("questionBankStats");
 const loadQuestionBankButton = document.getElementById("loadQuestionBank");
+const adminPinForm = document.getElementById("adminPinForm");
+const adminPinInput = document.getElementById("adminPinInput");
+const adminPinStatus = document.getElementById("adminPinStatus");
+const adminPinGate = document.getElementById("adminPinGate");
+const adminControls = document.getElementById("adminControls");
+const lockAdminButton = document.getElementById("lockAdminButton");
 const aiForm = document.getElementById("aiForm");
 const aiPrompt = document.getElementById("aiPrompt");
 const aiMessages = document.getElementById("aiMessages");
@@ -162,6 +175,31 @@ let aiChat = [];
 let cloudSaveTimeout = null;
 let uploadedQuestions = [];
 
+const motivationMessages = [
+  {
+    title: "Small wins build confidence.",
+    text: "One good study block today is better than waiting for the perfect mood tomorrow."
+  },
+  {
+    title: "Consistency beats pressure.",
+    text: "Students who revise a little every day usually remember more than those who cram at the end."
+  },
+  {
+    title: "Weak topics can become strengths.",
+    text: "When a topic feels hard, it is often the exact place where your next improvement starts."
+  }
+];
+
+function isAdminUnlocked() {
+  return sessionStorage.getItem("student-helper-admin-unlocked") === "true";
+}
+
+function setAdminUnlocked(value) {
+  sessionStorage.setItem("student-helper-admin-unlocked", value ? "true" : "false");
+  adminPinGate.hidden = value;
+  adminControls.hidden = !value;
+}
+
 function createEmptyState() {
   return {
     assignments: [],
@@ -186,17 +224,29 @@ function getQuestionBankRef() {
 }
 
 function normalizeQuestion(rawQuestion, fallbackSubject = "General") {
+  const options = [
+    String(rawQuestion.optionA || rawQuestion.options?.[0] || "").trim(),
+    String(rawQuestion.optionB || rawQuestion.options?.[1] || "").trim(),
+    String(rawQuestion.optionC || rawQuestion.options?.[2] || "").trim(),
+    String(rawQuestion.optionD || rawQuestion.options?.[3] || "").trim()
+  ];
+
+  const rawAnswer = String(rawQuestion.answer || "").trim();
+  let normalizedAnswer = rawAnswer.toUpperCase();
+
+  if (!["A", "B", "C", "D"].includes(normalizedAnswer)) {
+    const matchedIndex = options.findIndex((option) => option.toLowerCase() === rawAnswer.toLowerCase());
+    if (matchedIndex >= 0) {
+      normalizedAnswer = String.fromCharCode(65 + matchedIndex);
+    }
+  }
+
   return {
     id: rawQuestion.id || crypto.randomUUID(),
     subject: String(rawQuestion.subject || fallbackSubject).trim(),
     question: String(rawQuestion.question || "").trim(),
-    options: [
-      String(rawQuestion.optionA || rawQuestion.options?.[0] || "").trim(),
-      String(rawQuestion.optionB || rawQuestion.options?.[1] || "").trim(),
-      String(rawQuestion.optionC || rawQuestion.options?.[2] || "").trim(),
-      String(rawQuestion.optionD || rawQuestion.options?.[3] || "").trim()
-    ],
-    answer: String(rawQuestion.answer || "").trim().toUpperCase(),
+    options,
+    answer: normalizedAnswer,
     explanation: String(rawQuestion.explanation || "").trim()
   };
 }
@@ -213,6 +263,14 @@ function parseCsvQuestions(csvText, fallbackSubject) {
     const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
     return normalizeQuestion(row, fallbackSubject);
   }).filter((question) => question.question && question.options.every(Boolean) && question.answer);
+}
+
+function formatFirestoreError(error, fallbackMessage) {
+  const message = String(error?.message || "");
+  if (message.toLowerCase().includes("missing or insufficient permissions")) {
+    return "Firestore blocked this action. Update your Firestore rules to allow the required read/write access.";
+  }
+  return fallbackMessage ? `${fallbackMessage} ${message}`.trim() : message;
 }
 
 async function readUploadPayload() {
@@ -232,12 +290,13 @@ async function loadQuestionBank() {
     });
     renderQuestionBankStats();
   } catch (error) {
-    questionUploadStatus.textContent = `Could not load question bank. ${error.message}`;
+    questionUploadStatus.textContent = formatFirestoreError(error, "Could not load question bank.");
   }
 }
 
 function queueCloudSave() {
   if (!currentUser) {
+    syncStatusLabel.textContent = "Saved locally";
     return;
   }
 
@@ -245,14 +304,18 @@ function queueCloudSave() {
     clearTimeout(cloudSaveTimeout);
   }
 
+  syncStatusLabel.textContent = "Syncing...";
+
   cloudSaveTimeout = setTimeout(async () => {
     try {
       await setDoc(getUserStateRef(), {
         ...appState,
         updatedAt: serverTimestamp()
       }, { merge: true });
+      syncStatusLabel.textContent = "Cloud synced";
     } catch (error) {
       console.error("Cloud save failed:", error);
+      syncStatusLabel.textContent = "Sync issue";
     }
   }, 350);
 }
@@ -261,6 +324,7 @@ async function loadCloudState(uid) {
   try {
     const snapshot = await getDoc(getUserStateRef(uid));
     if (!snapshot.exists()) {
+      syncStatusLabel.textContent = "No cloud data yet";
       return;
     }
 
@@ -277,14 +341,29 @@ async function loadCloudState(uid) {
       sessions: data.sessions || 0,
       quizHistory: data.quizHistory || []
     };
+    syncStatusLabel.textContent = "Cloud synced";
   } catch (error) {
     console.error("Cloud load failed:", error);
+    syncStatusLabel.textContent = "Cloud load failed";
   }
 }
 
 function appendAiMessage(role, text) {
   aiChat.push({ role, text });
   renderAiChat();
+}
+
+function updateTopbar() {
+  const today = new Date();
+  currentDateLabel.textContent = today.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+  todayLabel.textContent = currentUser
+    ? `Welcome back, ${currentUser.email}. Build momentum one smart session at a time.`
+    : "Ready for another focused study session.";
 }
 
 function renderAiChat() {
@@ -318,6 +397,31 @@ function showSection(targetId) {
   navButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.target === targetId);
   });
+}
+
+function updateOverviewSpotlights() {
+  const completedAssignments = appState.assignments.filter((item) => item.completed).length;
+  const strongTopics = appState.topics.filter((topic) => topic.status === "Strong").length;
+  const weakTopics = appState.topics.filter((topic) => topic.status === "Needs Help").length;
+  const personaTitle = strongTopics > weakTopics
+    ? "You are in a strong revision phase."
+    : weakTopics > 0
+      ? "You are in catch-up mode."
+      : "You are building momentum.";
+  const personaText = strongTopics > weakTopics
+    ? `You already have ${strongTopics} strong topic(s). Keep pressing the advantage with timed practice.`
+    : weakTopics > 0
+      ? `${weakTopics} topic(s) still need help. Focus your next sessions there and use AI for quick explanations.`
+      : `You have completed ${completedAssignments} assignment(s) so far. Add goals and topics to sharpen your prep.`;
+
+  studyPersonaCard.innerHTML = `
+    <p class="spotlight-title">${personaTitle}</p>
+    <p class="meta-line">${personaText}</p>
+  `;
+
+  const messageIndex = (appState.sessions + appState.goals.length + appState.notes.length) % motivationMessages.length;
+  motivationTitle.textContent = motivationMessages[messageIndex].title;
+  motivationText.textContent = motivationMessages[messageIndex].text;
 }
 
 function getScopedKey(key) {
@@ -816,6 +920,8 @@ function refreshAllViews() {
   renderQuizHistory();
   renderQuestionBankStats();
   updateSummary();
+  updateOverviewSpotlights();
+  updateTopbar();
   resetTimerState();
 }
 
@@ -886,6 +992,12 @@ navButtons.forEach((button) => {
 
 openAiSectionButton?.addEventListener("click", () => {
   showSection("aiSection");
+});
+
+quickActionButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    showSection(button.dataset.targetSection);
+  });
 });
 
 aiActionButtons.forEach((button) => {
@@ -1115,6 +1227,46 @@ notesList.addEventListener("click", (event) => {
 
 noteSearch.addEventListener("input", renderNotes);
 
+adminPinForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const pin = adminPinInput.value.trim();
+  if (!pin) {
+    adminPinStatus.textContent = "Enter the admin PIN first.";
+    return;
+  }
+
+  adminPinStatus.textContent = "Checking PIN...";
+  try {
+    const response = await fetch("/api/admin-verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ pin })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "PIN verification failed.");
+    }
+
+    if (!data.valid) {
+      adminPinStatus.textContent = "Incorrect admin PIN.";
+      return;
+    }
+
+    setAdminUnlocked(true);
+    adminPinForm.reset();
+    adminPinStatus.textContent = "Admin unlocked.";
+  } catch (error) {
+    adminPinStatus.textContent = error.message;
+  }
+});
+
+lockAdminButton?.addEventListener("click", () => {
+  setAdminUnlocked(false);
+  adminPinStatus.textContent = "Admin locked.";
+});
+
 questionUploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) {
@@ -1156,7 +1308,7 @@ questionUploadForm.addEventListener("submit", async (event) => {
     questionUploadStatus.textContent = `${validQuestions.length} question(s) uploaded successfully.`;
     await loadQuestionBank();
   } catch (error) {
-    questionUploadStatus.textContent = `Upload failed. ${error.message}`;
+    questionUploadStatus.textContent = formatFirestoreError(error, "Upload failed.");
   }
 });
 
@@ -1238,21 +1390,28 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   setAuthStateUi(user);
   if (user) {
+    setAdminUnlocked(isAdminUnlocked());
     loadState();
     await loadCloudState(user.uid);
     await loadQuestionBank();
     refreshAllViews();
   } else {
+    setAdminUnlocked(false);
     appState = createEmptyState();
     quizState = { subject: null, questions: [], currentIndex: 0, score: 0, answered: false };
     uploadedQuestions = [];
     renderQuestionBankStats();
+    updateTopbar();
+    updateOverviewSpotlights();
   }
 });
 
 setAuthStateUi(null);
+setAdminUnlocked(isAdminUnlocked());
 renderCourseCheck();
 renderAiChat();
 renderQuestionBankStats();
+updateTopbar();
+updateOverviewSpotlights();
 showSection("overviewSection");
 resetTimerState();
